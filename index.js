@@ -1360,14 +1360,19 @@
 
         const state = latestPayload.state;
         const settings = latestPayload.settings;
+        const statusCard = $('#dml-settings .dml-status-card');
         const statusText = $('#dml-status-text');
         const statusMeta = $('#dml-status-meta');
+        const busy = Boolean(generationPromise);
 
         if (!statusText.length) {
             return;
         }
 
-        if (generationPromise) {
+        statusCard.toggleClass('is-busy', busy);
+        $('#dml-generate-now, #dml-rewrite-ai-now, #dml-reshuffle-now').prop('disabled', busy);
+
+        if (busy) {
             statusText.text('今日故人来信正在书写中');
             statusMeta.text('扩展正在前台静默扫描不活跃聊天和历史存档，请稍等片刻。');
         } else if (state.latestLetter) {

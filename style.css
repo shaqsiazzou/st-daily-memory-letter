@@ -37,10 +37,45 @@
 }
 
 #dml-settings .dml-status-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: rgba(255, 234, 208, 0.8);
+}
+
+#dml-settings .dml-status-kicker-icon {
+    display: none;
+    font-size: 11px;
+    color: #ffe2ba;
+}
+
+#dml-settings .dml-status-card.is-busy .dml-status-kicker-icon {
+    display: inline-flex;
+    animation: dml-hourglass-pulse 1.15s ease-in-out infinite;
+}
+
+#dml-settings .dml-status-card.is-busy .dml-status-title {
+    color: #fff2d8;
+}
+
+@keyframes dml-hourglass-pulse {
+    0% {
+        opacity: 0.45;
+        transform: translateY(0);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+
+    100% {
+        opacity: 0.45;
+        transform: translateY(0);
+    }
 }
 
 #dml-settings .dml-status-title {
