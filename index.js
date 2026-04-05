@@ -1526,7 +1526,8 @@
     }
 
     function formatEnvelopeDateCode(value) {
-        const date = value ? new Date(value) : new Date();
+        const timestamp = safeTimestamp(value) || Date.now();
+        const date = new Date(timestamp);
         if (Number.isNaN(date.getTime())) {
             return '000000';
         }
@@ -1535,6 +1536,20 @@
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}${month}${day}`;
+    }
+
+    function resolveEnvelopeDateValue(letter) {
+        const fragmentTimestamp = Array.isArray(letter?.fragments)
+            ? letter.fragments
+                .map(fragment => safeTimestamp(fragment?.lastMes))
+                .filter(Boolean)
+                .sort((left, right) => right - left)[0]
+            : null;
+
+        return fragmentTimestamp
+            || safeTimestamp(letter?.lastActivityAt)
+            || safeTimestamp(letter?.createdAt)
+            || Date.now();
     }
 
     function formatLastActivityMeta(letter) {
@@ -1830,7 +1845,7 @@
         const summary = escapeHtml(letter.summary || '');
         const coverCopy = escapeHtml(getCoverCopy(letter));
         const name = escapeHtml(resolveCharacterName(letter));
-        const dateCode = formatEnvelopeDateCode(letter.createdAt || letter.lastActivityAt || Date.now());
+        const dateCode = formatEnvelopeDateCode(resolveEnvelopeDateValue(letter));
         const dateBoxes = dateCode.split('').map(digit => `<span class="dml-postcode-digit">${digit}</span>`).join('');
         const avatarSources = getAvatarImageSources(context, letter?.character?.avatar);
         const popupAvatarSrc = escapeHtml(await resolvePopupAvatarSource(avatarSources));
