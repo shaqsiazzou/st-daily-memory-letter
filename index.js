@@ -343,6 +343,13 @@
         return lengthScore + dialogueBonus + punctuationHits * 0.8 + memoryHits * 4;
     }
 
+    function stripMarkup(text) {
+        return String(text || '')
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
     function selectBestSnippet(messages, settings) {
         const usableMessages = messages
             .filter(message => !message.is_system && typeof message.mes === 'string' && message.mes.trim())
@@ -375,7 +382,7 @@
                     best = {
                         score,
                         messages: windowMessages,
-                        preview: windowMessages.map(message => `${message.name}: ${message.mes}`).join('\n').slice(0, 320),
+                        preview: stripMarkup(windowMessages.map(message => `${message.name}: ${message.mes}`).join('\n')).slice(0, 320),
                     };
                 }
             }
@@ -1175,12 +1182,7 @@
         const name = escapeHtml(resolveCharacterName(letter));
         const avatar = letter?.character?.avatar ? context.getThumbnailUrl('avatar', letter.character.avatar) : '';
         const bodyHtml = renderLetterBody(letter);
-        const recalls = Array.isArray(letter.recall_points) ? letter.recall_points : [];
         const fragments = Array.isArray(letter.fragments) ? letter.fragments : [];
-
-        const recallsHtml = recalls.length
-            ? `<ul>${recalls.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
-            : '<div class="dml-empty">这封信没有额外的回忆摘录。</div>';
 
         const fragmentsHtml = fragments.map(fragment => `
             <div class="dml-fragment">
@@ -1212,35 +1214,28 @@
                         </div>
 
                         <div class="dml-letter-paper">
-                            <div class="dml-paper-kicker">来自旧日存档的回声</div>
-                            <div class="dml-paper-title">${title}</div>
-                            <div class="dml-paper-summary">${summary}</div>
-                            <div class="dml-paper-body">${bodyHtml}</div>
-                            <div class="dml-paper-recalls">
-                                <div class="dml-paper-kicker">你们曾经留下的细节</div>
-                                ${recallsHtml}
+                            <div class="dml-paper-header">
+                                ${avatar ? `<img class="dml-paper-avatar" src="${escapeHtml(avatar)}" alt="${name}">` : '<div class="dml-paper-avatar"></div>'}
+                                <div class="dml-paper-header-meta">
+                                    <div class="dml-paper-kicker">来自旧日存档的回声</div>
+                                    <div class="dml-paper-title">${title}</div>
+                                    <div class="dml-paper-meta-line">${escapeHtml(name)} · ${escapeHtml(formatLastActivityMeta(letter))}</div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                            <div class="dml-paper-summary">${summary || teaser}</div>
+                            <div class="dml-paper-body">${bodyHtml}</div>
 
-                </div>
+                            <details class="dml-paper-fragments">
+                                <summary class="dml-paper-fragments-summary">本次来信参考了这些旧存档片段</summary>
+                                <div class="dml-paper-fragments-body">
+                                    ${fragmentsHtml || '<div class="dml-empty">没有可展示的片段预览。</div>'}
+                                </div>
+                            </details>
 
-                <div class="dml-letter-side">
-                    <div class="dml-portrait-card">
-                        ${avatar ? `<img class="dml-portrait-image" src="${escapeHtml(avatar)}" alt="${name}">` : '<div class="dml-portrait-image"></div>'}
-                        <div class="dml-portrait-meta">
-                            <div class="dml-portrait-name">${name}</div>
-                            <div class="dml-portrait-sub">${escapeHtml(formatLastActivityMeta(letter))}</div>
-                            <div class="dml-portrait-sub">${escapeHtml(`生成于 ${formatDate(letter.createdAt)}`)}</div>
-                            <div style="margin-top: 12px;">
+                            <div class="dml-paper-actions">
                                 <button class="menu_button" data-dml-action="open-chat" data-dml-avatar="${escapeHtml(letter.character?.avatar || '')}" data-dml-chat-file="${escapeHtml(letter.openChatFile || '')}" type="button">重新打开这段聊天</button>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="dml-fragments-card">
-                        <div class="dml-fragments-title">本次来信参考了这些旧存档片段</div>
-                        ${fragmentsHtml || '<div class="dml-empty" style="margin-top:12px;">没有可展示的片段预览。</div>'}
                     </div>
                 </div>
             </div>
