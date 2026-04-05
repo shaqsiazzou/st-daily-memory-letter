@@ -586,6 +586,7 @@
             return null;
         }
 
+        const completionsUrl = getChatCompletionsUrl(settings.apiUrl);
         const headers = {
             'Content-Type': 'application/json',
         };
@@ -598,7 +599,7 @@
         const timer = setTimeout(() => controller.abort(), settings.requestTimeoutMs);
 
         try {
-            const response = await fetch(settings.apiUrl, {
+            const response = await fetch(completionsUrl, {
                 method: 'POST',
                 headers,
                 signal: controller.signal,
@@ -632,6 +633,37 @@
         } finally {
             clearTimeout(timer);
         }
+    }
+
+    function getChatCompletionsUrl(apiUrl) {
+        const trimmed = String(apiUrl || '').trim();
+        if (!trimmed) {
+            return '';
+        }
+
+        if (/\/chat\/completions\/?$/i.test(trimmed)) {
+            return trimmed;
+        }
+
+        if (/\/models\/?$/i.test(trimmed)) {
+            return trimmed.replace(/\/models\/?$/i, '/chat/completions');
+        }
+
+        if (/\/v\d[\w.-]*\/?$/i.test(trimmed)) {
+            return trimmed.replace(/\/$/, '') + '/chat/completions';
+        }
+
+        try {
+            const url = new URL(trimmed);
+            if (!url.pathname || url.pathname === '/') {
+                url.pathname = '/v1/chat/completions';
+                return url.toString();
+            }
+        } catch {
+            // Ignore invalid URL parsing and fall back to the original input.
+        }
+
+        return trimmed;
     }
 
     function buildApiHeaders(settings) {
