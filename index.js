@@ -397,6 +397,61 @@
         return lengthScore + dialogueBonus + punctuationHits * 0.8 + memoryHits * 4;
     }
 
+    function normalizeSnippetText(text) {
+        return String(text || '')
+            .toLowerCase()
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function getSnippetSignature(snippet) {
+        return normalizeSnippetText(
+            Array.isArray(snippet?.messages)
+                ? snippet.messages.map(message => `${message.name}: ${message.mes}`).join('\n')
+                : (snippet?.preview || ''),
+        );
+    }
+
+    function getTokenOverlapRatio(leftText, rightText) {
+        const leftTokens = new Set(normalizeSnippetText(leftText).split(' ').filter(token => token.length > 1));
+        const rightTokens = new Set(normalizeSnippetText(rightText).split(' ').filter(token => token.length > 1));
+
+        if (!leftTokens.size || !rightTokens.size) {
+            return 0;
+        }
+
+        let overlap = 0;
+        for (const token of leftTokens) {
+            if (rightTokens.has(token)) {
+                overlap += 1;
+            }
+        }
+
+        return overlap / Math.min(leftTokens.size, rightTokens.size);
+    }
+
+    function areSnippetsTooSimilar(leftSnippet, rightSnippet) {
+        const leftSignature = getSnippetSignature(leftSnippet);
+        const rightSignature = getSnippetSignature(rightSnippet);
+
+        if (!leftSignature || !rightSignature) {
+            return false;
+        }
+
+        if (leftSignature === rightSignature) {
+            return true;
+        }
+
+        if (leftSignature.length > 80 && rightSignature.length > 80) {
+            if (leftSignature.includes(rightSignature) || rightSignature.includes(leftSignature)) {
+                return true;
+            }
+        }
+
+        return getTokenOverlapRatio(leftSignature, rightSignature) >= 0.82;
+    }
+
     function stripMarkup(text) {
         return String(text || '')
             .replace(/<[^>]*>/g, ' ')
@@ -602,7 +657,7 @@
     }
 
     async function collectCandidateFragments(candidate, settings) {
-        const archiveLimit = Math.min(candidate.archives.length, Math.max(settings.snippetsPerLetter * 3, 4));
+        const archiveLimit = Math.min(candidate.archives.length, Math.max(settings.snippetsPerLetter * 6, 8));
         const snippetArchives = [];
 
         for (const archive of candidate.archives.slice(0, archiveLimit)) {
@@ -622,16 +677,41 @@
             }
         }
 
-        return snippetArchives
-            .sort((left, right) => right.snippet.score - left.snippet.score)
-            .slice(0, settings.snippetsPerLetter)
-            .map(item => ({
-                fileName: item.archive.fileName,
-                lastMes: item.archive.lastMes,
-                preview: item.snippet.preview,
-                score: item.snippet.score,
-                messages: item.snippet.messages,
-            }));
+        const ranked = snippetArchives.sort((left, right) => right.snippet.score - left.snippet.score);
+        const selected = [];
+
+        for (const item of ranked) {
+            const alreadyCovered = selected.some(existing => areSnippetsTooSimilar(existing.snippet, item.snippet));
+            if (alreadyCovered) {
+                continue;
+            }
+
+            selected.push(item);
+            if (selected.length >= settings.snippetsPerLetter) {
+                break;
+            }
+        }
+
+        if (selected.length < settings.snippetsPerLetter) {
+            for (const item of ranked) {
+                if (selected.includes(item)) {
+                    continue;
+                }
+
+                selected.push(item);
+                if (selected.length >= settings.snippetsPerLetter) {
+                    break;
+                }
+            }
+        }
+
+        return selected.map(item => ({
+            fileName: item.archive.fileName,
+            lastMes: item.archive.lastMes,
+            preview: item.snippet.preview,
+            score: item.snippet.score,
+            messages: item.snippet.messages,
+        }));
     }
 
     async function selectCandidateWithFragments(settings, runtimeState, options = {}) {
