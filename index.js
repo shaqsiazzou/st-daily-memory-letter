@@ -590,6 +590,34 @@
         };
     }
 
+    async function rebuildCandidateForAvatar(letter) {
+        const avatar = String(letter?.character?.avatar || '').trim();
+        if (!avatar) {
+            return null;
+        }
+
+        const character = (getContext().characters || []).find(item => item?.avatar === avatar);
+        if (!character?.name) {
+            return null;
+        }
+
+        const archives = await searchCharacterArchives(character);
+        if (!archives.length) {
+            return null;
+        }
+
+        const lastActivity = Math.max(...archives.map(archive => archive.lastMes || 0), 0);
+
+        return {
+            character,
+            archives: archives.sort((left, right) => right.lastMes - left.lastMes),
+            archiveCount: archives.length,
+            lastActivity,
+            inactiveMs: Math.max(0, Date.now() - lastActivity),
+            eligible: true,
+        };
+    }
+
     function getCharacterCardContext(candidate) {
         const characters = getContext().characters || [];
         const chid = characters.findIndex(item => item?.avatar === candidate?.character?.avatar);
@@ -1092,12 +1120,19 @@
 
         generationPromise = (async () => {
             try {
-                const candidate = buildCandidateFromLetter(latestLetter);
-                const fragments = Array.isArray(latestLetter.fragments) ? latestLetter.fragments : [];
+                const candidate = await rebuildCandidateForAvatar(latestLetter);
+                if (!candidate) {
+                    patchRuntimeState({
+                        lastError: '无法重新读取当前角色的聊天存档，请先确认角色还存在且有可读聊天记录。',
+                    });
+                    return;
+                }
+
+                const fragments = await collectCandidateFragments(candidate, settings);
 
                 if (!fragments.length) {
                     patchRuntimeState({
-                        lastError: '当前这封来信没有可重用的片段，无法重新发送给 AI。',
+                        lastError: '按当前设置没有从这张角色卡里提取到可用片段，无法重新发送给 AI。',
                     });
                     return;
                 }
