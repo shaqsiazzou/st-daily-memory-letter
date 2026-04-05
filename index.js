@@ -1430,7 +1430,7 @@
         `).join('');
 
         const html = `
-            <div id="${popupId}" class="dml-letter-popup">
+            <div id="${popupId}" class="dml-letter-popup" tabindex="-1" autofocus>
                 <div class="dml-letter-main">
                     <div class="dml-envelope-shell">
                         <div class="dml-envelope-cover">
@@ -1478,16 +1478,17 @@
             </div>
         `;
 
+        const isNarrowViewport = window.matchMedia('(max-width: 900px)').matches;
         context.callGenericPopup(html, context.POPUP_TYPE.TEXT, '', {
             wide: true,
-            large: true,
+            large: !isNarrowViewport,
+            okButton: false,
+            cancelButton: false,
             allowVerticalScrolling: true,
+            onOpen: (popup) => {
+                popup.dlg.classList.add('dml-host-popup');
+            },
         });
-
-        setTimeout(() => {
-            const root = document.getElementById(popupId);
-            root?.querySelector('.dml-envelope-cover .menu_button')?.focus();
-        }, 0);
     }
 
     const context = getContext();
