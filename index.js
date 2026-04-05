@@ -1671,8 +1671,17 @@
         });
     }
 
-    async function debugGenerateForCharacter(query) {
-        const settings = getSettings();
+    async function debugGenerateForCharacter(query, options = {}) {
+        const baseSettings = getSettings();
+        const settings = {
+            ...baseSettings,
+            ...(Number.isFinite(Number(options?.timeoutMs))
+                ? { requestTimeoutMs: Number(options.timeoutMs) }
+                : {}),
+            ...(typeof options?.local === 'boolean'
+                ? { useLocalGeneration: options.local }
+                : {}),
+        };
         const localMode = shouldUseLocalGeneration(settings);
         const apiReady = canGenerateWithApi(settings);
 
@@ -1747,11 +1756,13 @@
             help() {
                 console.info(`[${MODULE_NAME}] Debug commands:
 __DML_DEBUG__.generateForCharacter('角色名')
+__DML_DEBUG__.generateForCharacter('角色名', { timeoutMs: 180000 })
+__DML_DEBUG__.generateForCharacter('角色名', { local: true })
 __DML_DEBUG__.showApiFailureCard({ title, message, detail, hint })
 __DML_DEBUG__.state()`);
             },
-            generateForCharacter(query) {
-                return debugGenerateForCharacter(query).catch(error => {
+            generateForCharacter(query, options = {}) {
+                return debugGenerateForCharacter(query, options).catch(error => {
                     console.error(`[${MODULE_NAME}] Debug generate failed`, error);
                     return null;
                 });
