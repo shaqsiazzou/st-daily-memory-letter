@@ -1110,6 +1110,7 @@
     overflow-y: auto;
     margin-top: 12px;
     padding-right: 4px;
+    padding-bottom: 26px;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
 }
@@ -1199,7 +1200,7 @@
 .dml-paper-actions {
     margin-top: 18px;
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
 }
 
 .dml-favorites-popup-card {
