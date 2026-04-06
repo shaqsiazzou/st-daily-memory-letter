@@ -7,6 +7,8 @@
     const RUNTIME_STORAGE_KEY = `${MODULE_NAME}:runtime`;
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
     const INVALID_INACTIVITY_DAYS = 20000;
+    const MAX_FAVORITE_LETTERS = 30;
+    const FAVORITE_PREVIEW_LIMIT = 5;
     const LEGACY_ANALYSIS_SYSTEM_PROMPT = [
         '你是一位擅长写“故人来信”的创作者。',
         '你会阅读同一张角色卡来自不同历史存档的聊天片段，写出一封让用户想重新回去和这个角色继续对话的信。',
@@ -71,6 +73,7 @@
         temperature: 1.05,
         analysisSystemPrompt: DEFAULT_ANALYSIS_SYSTEM_PROMPT,
         inCharacterSystemPrompt: DEFAULT_IN_CHARACTER_SYSTEM_PROMPT,
+        favoriteLetters: [],
     });
 
     const DEFAULT_RUNTIME_STATE = Object.freeze({
@@ -263,6 +266,12 @@
             changed = true;
         }
 
+        const sanitizedFavorites = sanitizeFavoriteLetters(extensionSettings[MODULE_NAME].favoriteLetters);
+        if (JSON.stringify(sanitizedFavorites) !== JSON.stringify(extensionSettings[MODULE_NAME].favoriteLetters || [])) {
+            extensionSettings[MODULE_NAME].favoriteLetters = sanitizedFavorites;
+            changed = true;
+        }
+
         // Migrate the old hidden timeout default to the new 120s baseline.
         if (Number(extensionSettings[MODULE_NAME].requestTimeoutMs) === 60000) {
             extensionSettings[MODULE_NAME].requestTimeoutMs = DEFAULT_SETTINGS.requestTimeoutMs;
@@ -276,6 +285,7 @@
         return {
             ...DEFAULT_SETTINGS,
             ...extensionSettings[MODULE_NAME],
+            favoriteLetters: sanitizeFavoriteLetters(extensionSettings[MODULE_NAME].favoriteLetters),
         };
     }
 
@@ -303,6 +313,122 @@
             inactivityDays,
             lastActivityAt: letter.lastActivityAt || null,
         };
+    }
+
+    function slimFragmentForFavorite(fragment) {
+        if (!fragment || typeof fragment !== 'object') {
+            return null;
+        }
+
+        return {
+            fileName: String(fragment.fileName || ''),
+            lastMes: fragment.lastMes || null,
+            preview: String(fragment.preview || ''),
+        };
+    }
+
+    function slimLetterForFavorite(letter) {
+        const base = sanitizeLetterRecord(letter);
+        if (!base) {
+            return null;
+        }
+
+        return {
+            id: String(base.id || `${Date.now()}`),
+            createdAt: base.createdAt || nowIso(),
+            source: base.source || 'external-ai',
+            mode: base.mode || 'analysis',
+            character: {
+                avatar: base.character?.avatar || '',
+                internalName: base.character?.internalName || '',
+            },
+            inactivityDays: base.inactivityDays,
+            lastActivityAt: base.lastActivityAt || null,
+            archiveCount: Number(base.archiveCount) || 0,
+            openChatFile: base.openChatFile || null,
+            title: String(base.title || ''),
+            teaser: String(base.teaser || ''),
+            summary: String(base.summary || ''),
+            letter: String(base.letter || ''),
+            why_now: String(base.why_now || ''),
+            next_hook: String(base.next_hook || ''),
+            recall_points: Array.isArray(base.recall_points) ? base.recall_points.map(item => String(item || '')).filter(Boolean).slice(0, 4) : [],
+            fragments: Array.isArray(base.fragments) ? base.fragments.map(slimFragmentForFavorite).filter(Boolean).slice(0, 5) : [],
+        };
+    }
+
+    function sanitizeFavoriteLetters(raw) {
+        if (!Array.isArray(raw)) {
+            return [];
+        }
+
+        const seen = new Set();
+        const favorites = [];
+
+        for (const item of raw) {
+            const sanitized = slimLetterForFavorite(item);
+            if (!sanitized || seen.has(sanitized.id)) {
+                continue;
+            }
+
+            seen.add(sanitized.id);
+            favorites.push(sanitized);
+
+            if (favorites.length >= MAX_FAVORITE_LETTERS) {
+                break;
+            }
+        }
+
+        return favorites;
+    }
+
+    function getFavoriteLetters() {
+        return sanitizeFavoriteLetters(getSettings().favoriteLetters);
+    }
+
+    function isFavoriteLetter(letterId) {
+        return getFavoriteLetters().some(letter => letter.id === letterId);
+    }
+
+    function saveFavoriteLetters(favoriteLetters) {
+        const sanitized = sanitizeFavoriteLetters(favoriteLetters);
+        saveSettings({ favoriteLetters: sanitized });
+        syncPayload();
+        renderState();
+        return sanitized;
+    }
+
+    function upsertFavoriteLetter(letter) {
+        const sanitized = slimLetterForFavorite(letter);
+        if (!sanitized) {
+            return getFavoriteLetters();
+        }
+
+        const favorites = [
+            sanitized,
+            ...getFavoriteLetters().filter(item => item.id !== sanitized.id),
+        ].slice(0, MAX_FAVORITE_LETTERS);
+
+        return saveFavoriteLetters(favorites);
+    }
+
+    function deleteFavoriteLetter(letterId) {
+        return saveFavoriteLetters(getFavoriteLetters().filter(item => item.id !== letterId));
+    }
+
+    function findKnownLetterById(letterId) {
+        if (!letterId) {
+            return null;
+        }
+
+        const runtime = loadRuntimeState();
+        const candidates = [
+            runtime.latestLetter,
+            ...(Array.isArray(runtime.history) ? runtime.history : []),
+            ...getFavoriteLetters(),
+        ];
+
+        return candidates.find(item => item?.id === letterId) || null;
     }
 
     function normalizeRuntimeState(raw) {
@@ -1506,6 +1632,10 @@
 
             openLetterPopup(latestPayload.state.latestLetter);
         });
+
+        $('#dml-view-all-favorites').on('click', () => {
+            openFavoritesPopup();
+        });
     }
 
     function collectSettingsForm() {
@@ -1625,6 +1755,92 @@
         return `最近聊天 ${formatDate(letter.lastActivityAt)}`;
     }
 
+    function renderFavoriteLettersMarkup(favorites, { limit = FAVORITE_PREVIEW_LIMIT, includeDelete = true } = {}) {
+        const items = favorites.slice(0, limit);
+        if (!items.length) {
+            return '<div class="dml-empty">还没有收藏的故人来信。</div>';
+        }
+
+        return items.map(letter => {
+            const name = resolveCharacterName(letter);
+            const meta = `${name}，${formatInactivityLabel(letter)}`;
+            const date = formatDate(letter.createdAt);
+            const teaser = escapeHtml(String(letter.teaser || letter.summary || '').trim() || '这封来信还没有留下摘要。');
+
+            return `
+                <div class="dml-favorite-item">
+                    <div class="dml-favorite-copy">
+                        <div class="dml-favorite-title">${escapeHtml(letter.title || '未命名来信')}</div>
+                        <div class="dml-favorite-meta">${escapeHtml(meta)}</div>
+                        <div class="dml-favorite-date">${escapeHtml(date)}</div>
+                        <div class="dml-favorite-teaser">${teaser}</div>
+                    </div>
+                    <div class="dml-favorite-actions">
+                        <button class="menu_button dml-favorite-open-button" data-dml-action="open-favorite-letter" data-dml-letter-id="${escapeHtml(letter.id)}" type="button">查看</button>
+                        ${includeDelete
+                            ? `<button class="menu_button dml-favorite-delete-button" data-dml-action="delete-favorite-letter" data-dml-letter-id="${escapeHtml(letter.id)}" type="button">删除</button>`
+                            : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderFavoritesPanel() {
+        const favorites = getFavoriteLetters();
+        $('#dml-favorites-count').text(favorites.length ? `（${favorites.length}）` : '');
+        $('#dml-favorites-list').html(renderFavoriteLettersMarkup(favorites, { limit: FAVORITE_PREVIEW_LIMIT, includeDelete: true }));
+
+        const moreCount = Math.max(0, favorites.length - FAVORITE_PREVIEW_LIMIT);
+        $('#dml-favorites-overflow').text(moreCount > 0 ? `还有 ${moreCount} 封收藏信件可以在完整列表里查看。` : '');
+        $('#dml-view-all-favorites').prop('disabled', favorites.length === 0);
+    }
+
+    function refreshFavoriteButtons(letterId) {
+        const favorite = isFavoriteLetter(letterId);
+        const buttons = Array.from(document.querySelectorAll('[data-dml-action="toggle-favorite-letter"]'))
+            .filter(button => button.getAttribute('data-dml-letter-id') === letterId);
+        for (const button of buttons) {
+            button.textContent = favorite ? '已收藏' : '收藏这封信';
+            button.classList.toggle('is-active', favorite);
+        }
+    }
+
+    function openFavoritesPopup() {
+        const context = getContext();
+        const popupId = `dml-favorites-popup-${Date.now()}`;
+        const favorites = getFavoriteLetters();
+
+        const html = `
+            <div id="${popupId}" class="dml-debug-popup dml-favorites-popup" tabindex="-1" autofocus>
+                <button class="menu_button dml-popup-close" data-result="null" type="button" aria-label="关闭收藏夹">×</button>
+                <div class="dml-favorites-popup-card">
+                    <div class="dml-favorites-popup-title">收藏信件</div>
+                    <div class="dml-favorites-popup-subtitle">最多同步保存 ${MAX_FAVORITE_LETTERS} 封故人来信，可在不同设备间继续查看。</div>
+                    <div id="${popupId}-list" class="dml-favorites-popup-list">${renderFavoriteLettersMarkup(favorites, { limit: MAX_FAVORITE_LETTERS, includeDelete: true })}</div>
+                </div>
+            </div>
+        `;
+
+        context.callGenericPopup(html, context.POPUP_TYPE.TEXT, '', {
+            wide: false,
+            large: false,
+            okButton: false,
+            cancelButton: false,
+            allowVerticalScrolling: true,
+            onOpen: (popup) => {
+                popup.dlg.classList.add('dml-host-popup', 'dml-host-popup--compact');
+            },
+        });
+    }
+
+    function refreshOpenFavoritePopups() {
+        const favorites = getFavoriteLetters();
+        document.querySelectorAll('.dml-favorites-popup-list').forEach(node => {
+            node.innerHTML = renderFavoriteLettersMarkup(favorites, { limit: MAX_FAVORITE_LETTERS, includeDelete: true });
+        });
+    }
+
     function getGenerationModeLabel(settings) {
         const channel = shouldUseLocalGeneration(settings) ? '本地生成' : '外部 AI 生成';
         const tone = isInCharacterMode(settings) ? '角色第一人称' : '分析书信';
@@ -1644,6 +1860,8 @@
         if (!statusText.length) {
             return;
         }
+
+        renderFavoritesPanel();
 
         statusCard.toggleClass('is-busy', busy);
         $('#dml-generate-now, #dml-rewrite-ai-now, #dml-reshuffle-now').prop('disabled', busy);
@@ -1716,6 +1934,53 @@
                 const avatar = target.getAttribute('data-dml-avatar');
                 const chatFile = target.getAttribute('data-dml-chat-file');
                 await openRecommendedChat(avatar, chatFile);
+                return;
+            }
+
+            if (action === 'toggle-favorite-letter') {
+                const letterId = target.getAttribute('data-dml-letter-id');
+                const letter = findKnownLetterById(letterId);
+                if (!letter) {
+                    toastr.warning('找不到这封来信，无法修改收藏状态。');
+                    return;
+                }
+
+                const favorite = isFavoriteLetter(letterId);
+                if (favorite) {
+                    deleteFavoriteLetter(letterId);
+                    toastr.info('这封信已从收藏中移除');
+                } else {
+                    upsertFavoriteLetter(letter);
+                    toastr.success('这封信已加入收藏');
+                }
+
+                refreshFavoriteButtons(letterId);
+                refreshOpenFavoritePopups();
+                return;
+            }
+
+            if (action === 'open-favorite-letter') {
+                const letterId = target.getAttribute('data-dml-letter-id');
+                const letter = findKnownLetterById(letterId) || getFavoriteLetters().find(item => item.id === letterId);
+                if (!letter) {
+                    toastr.warning('找不到这封收藏信件，可能已经被删除。');
+                    return;
+                }
+
+                openLetterPopup(letter);
+                return;
+            }
+
+            if (action === 'delete-favorite-letter') {
+                const letterId = target.getAttribute('data-dml-letter-id');
+                if (!letterId) {
+                    return;
+                }
+
+                deleteFavoriteLetter(letterId);
+                refreshFavoriteButtons(letterId);
+                refreshOpenFavoritePopups();
+                toastr.info('已删除这封收藏信件');
             }
         });
     }
@@ -1935,6 +2200,8 @@
         const stampAgeClass = getStampAgeClass(letter);
         const bodyHtml = renderLetterBody(letter);
         const fragments = Array.isArray(letter.fragments) ? letter.fragments : [];
+        const favoriteButtonLabel = isFavoriteLetter(letter.id) ? '已收藏' : '收藏这封信';
+        const favoriteButtonClass = isFavoriteLetter(letter.id) ? ' is-active' : '';
 
         const fragmentsHtml = fragments.map(fragment => `
             <div class="dml-fragment">
@@ -1984,9 +2251,12 @@
 
                         <div class="dml-letter-paper">
                             <div class="dml-paper-header">
-                                ${popupAvatarSrc
-                                    ? `<img class="dml-paper-avatar" src="${popupAvatarSrc}" alt="${name}">`
-                                    : '<div class="dml-paper-avatar"></div>'}
+                                <div class="dml-paper-side">
+                                    ${popupAvatarSrc
+                                        ? `<img class="dml-paper-avatar" src="${popupAvatarSrc}" alt="${name}">`
+                                        : '<div class="dml-paper-avatar"></div>'}
+                                    <button class="menu_button dml-paper-favorite-button${favoriteButtonClass}" data-dml-action="toggle-favorite-letter" data-dml-letter-id="${escapeHtml(letter.id)}" type="button">${favoriteButtonLabel}</button>
+                                </div>
                                 <div class="dml-paper-header-meta">
                                     <div class="dml-paper-kicker">来自旧日存档的回声</div>
                                     <div class="dml-paper-title">${title}</div>
