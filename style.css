@@ -685,16 +685,43 @@
     transition: opacity 0.25s ease;
 }
 
+.dml-envelope-stamp.is-yellowed .dml-envelope-stamp-image {
+    filter: sepia(0.14) saturate(0.94) brightness(0.99) contrast(0.98);
+}
+
+.dml-envelope-stamp.is-yellowed::after {
+    opacity: 0.15;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(182, 144, 93, 0.18), transparent 16%),
+        radial-gradient(circle at 80% 76%, rgba(136, 100, 62, 0.12), transparent 18%),
+        linear-gradient(180deg, rgba(173, 136, 89, 0.08), rgba(104, 75, 44, 0.03));
+    mix-blend-mode: multiply;
+}
+
 .dml-envelope-stamp.is-aged .dml-envelope-stamp-image {
     filter: sepia(0.24) saturate(0.86) brightness(0.97) contrast(0.96);
 }
 
 .dml-envelope-stamp.is-aged::after {
-    opacity: 0.22;
+    opacity: 0.24;
     background:
         radial-gradient(circle at 18% 20%, rgba(156, 119, 78, 0.28), transparent 18%),
         radial-gradient(circle at 82% 78%, rgba(112, 82, 52, 0.22), transparent 18%),
         linear-gradient(180deg, rgba(146, 110, 70, 0.12), rgba(86, 60, 34, 0.06));
+    mix-blend-mode: multiply;
+}
+
+.dml-envelope-stamp.is-weathered .dml-envelope-stamp-image {
+    filter: sepia(0.34) saturate(0.78) brightness(0.96) contrast(0.94);
+}
+
+.dml-envelope-stamp.is-weathered::after {
+    opacity: 0.29;
+    background:
+        radial-gradient(circle at 15% 18%, rgba(165, 126, 82, 0.32), transparent 20%),
+        radial-gradient(circle at 84% 82%, rgba(122, 87, 52, 0.26), transparent 18%),
+        radial-gradient(circle at 54% 44%, rgba(109, 78, 46, 0.08), transparent 30%),
+        linear-gradient(180deg, rgba(154, 118, 76, 0.14), rgba(93, 65, 36, 0.09));
     mix-blend-mode: multiply;
 }
 

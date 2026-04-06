@@ -2265,15 +2265,19 @@
 
     function getStampAgeClass(letter) {
         const days = Number(letter?.inactivityDays || 0);
-        if (days >= 120) {
+        if (days > 240) {
             return 'is-antique';
         }
 
-        if (days >= 45) {
+        if (days >= 121) {
+            return 'is-weathered';
+        }
+
+        if (days >= 46) {
             return 'is-aged';
         }
 
-        return 'is-fresh';
+        return 'is-yellowed';
     }
 
     function openApiFailureCard({ title = '小信封投递失败', message = '这次故人来信没有成功寄出。', detail = '', hint = '' } = {}) {
