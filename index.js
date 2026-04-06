@@ -1850,7 +1850,7 @@
         $('#dml-favorites-list').html(renderFavoriteLettersMarkup(favorites, { limit: FAVORITE_PREVIEW_LIMIT, includeDelete: true }));
 
         const moreCount = Math.max(0, favorites.length - FAVORITE_PREVIEW_LIMIT);
-        $('#dml-favorites-overflow').text(moreCount > 0 ? `还有 ${moreCount} 封收藏信件可以在完整列表里查看。` : '');
+        $('#dml-favorites-overflow').text(moreCount > 0 ? `还有 ${moreCount} 封信件可以在收件箱里查看。` : '');
         $('#dml-view-all-favorites').prop('disabled', favorites.length === 0);
     }
 
@@ -1873,8 +1873,8 @@
             <div id="${popupId}" class="dml-debug-popup dml-favorites-popup" tabindex="-1" autofocus>
                 <button class="menu_button dml-popup-close" data-result="null" type="button" aria-label="关闭收藏夹">×</button>
                 <div class="dml-favorites-popup-card">
-                    <div class="dml-favorites-popup-title">收藏信件</div>
-                    <div class="dml-favorites-popup-subtitle">最多同步保存 ${MAX_FAVORITE_LETTERS} 封故人来信，可在不同设备间继续查看。</div>
+                    <div class="dml-favorites-popup-title">收件箱</div>
+                    <div class="dml-favorites-popup-subtitle">最多同步保存 ${MAX_FAVORITE_LETTERS} 封故人来信，可在不同设备间继续翻看。</div>
                     <div id="${popupId}-list" class="dml-favorites-popup-list">${renderFavoriteLettersMarkup(favorites, { limit: MAX_FAVORITE_LETTERS, includeDelete: true })}</div>
                 </div>
             </div>
@@ -2019,7 +2019,7 @@
                 const letterId = target.getAttribute('data-dml-letter-id');
                 const letter = findKnownLetterById(letterId) || getFavoriteLetters().find(item => item.id === letterId);
                 if (!letter) {
-                    toastr.warning('找不到这封收藏信件，可能已经被删除。');
+                    toastr.warning('找不到这封收件箱里的信，可能已经被删除。');
                     return;
                 }
 
@@ -2036,7 +2036,7 @@
                 deleteFavoriteLetter(letterId);
                 refreshFavoriteButtons(letterId);
                 refreshOpenFavoritePopups();
-                toastr.info('已删除这封收藏信件');
+                toastr.info('已将这封信从收件箱移除');
             }
         });
     }
