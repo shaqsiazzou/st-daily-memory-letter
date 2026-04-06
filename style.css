@@ -853,6 +853,19 @@
     z-index: 1;
 }
 
+.dml-cover-signature {
+    margin-top: 10px;
+    max-width: 360px;
+    align-self: flex-end;
+    font-size: 18px;
+    line-height: 1.5;
+    color: rgba(104, 69, 39, 0.9);
+    font-family: "DML Handwritten", "STKaiti", "Kaiti SC", "KaiTi", "FangSong", "cursive";
+    text-align: right;
+    position: relative;
+    z-index: 1;
+}
+
 .dml-envelope-cover .menu_button.dml-open-button {
     margin-top: 26px;
     width: auto;
@@ -1412,6 +1425,13 @@
         line-height: 1.85;
         max-width: none;
         text-shadow: none;
+    }
+
+    .dml-cover-signature {
+        margin-top: 8px;
+        max-width: none;
+        font-size: 16px;
+        align-self: flex-end;
     }
 
     .dml-envelope-cover .menu_button.dml-open-button {

@@ -1584,6 +1584,7 @@
         try {
             syncPayload();
             exposeDebugCommands();
+            ensureHandwritingFontReady();
             await mountSettings();
             bindPopupActions();
             renderState();
@@ -2194,6 +2195,33 @@
         }
     }
 
+    let handwritingFontWarmupPromise = null;
+
+    async function ensureHandwritingFontReady(timeoutMs = 1600) {
+        if (!document?.fonts?.load) {
+            return;
+        }
+
+        if (!handwritingFontWarmupPromise) {
+            handwritingFontWarmupPromise = (async () => {
+                const sampleText = '此致故人来信';
+                try {
+                    await Promise.race([
+                        Promise.all([
+                            document.fonts.load('18px "DML Handwritten"', sampleText),
+                            document.fonts.load('28px "DML Handwritten"', sampleText),
+                        ]),
+                        new Promise((_, reject) => window.setTimeout(() => reject(new Error('font warmup timeout')), timeoutMs)),
+                    ]);
+                } catch {
+                    // Best-effort warmup only.
+                }
+            })();
+        }
+
+        await handwritingFontWarmupPromise.catch(() => {});
+    }
+
     function getStampAgeClass(letter) {
         const days = Number(letter?.inactivityDays || 0);
         if (days >= 120) {
@@ -2251,9 +2279,11 @@
         const summary = escapeHtml(letter.summary || '');
         const coverCopy = escapeHtml(getCoverCopy(letter));
         const name = escapeHtml(resolveCharacterName(letter));
+        const coverSignature = escapeHtml(`此致，${resolveCharacterName(letter)}`);
         const dateCode = formatEnvelopeDateCode(resolveEnvelopeDateValue(letter));
         const dateBoxes = dateCode.split('').map(digit => `<span class="dml-postcode-digit">${digit}</span>`).join('');
         const avatarSources = getAvatarImageSources(context, letter?.character?.avatar);
+        await ensureHandwritingFontReady();
         const popupAvatarSrc = escapeHtml(await resolvePopupAvatarSource(avatarSources));
         const popupStampSrc = escapeHtml(await resolvePopupAssetSource(STAMP_IMAGE_PATH));
         const stampAgeClass = getStampAgeClass(letter);
@@ -2303,6 +2333,7 @@
                                     <div class="dml-envelope-subtitle">A LETTER FROM THE PAST</div>
                                     <div class="dml-envelope-seal" aria-hidden="true"></div>
                                     <div class="dml-cover-summary">${coverCopy}</div>
+                                    <div class="dml-cover-signature">${coverSignature}</div>
                                     <button class="menu_button dml-open-button" data-dml-action="open-envelope" data-dml-popup-id="${popupId}" type="button">打开信封</button>
                                 </div>
                             </div>
