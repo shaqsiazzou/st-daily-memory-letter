@@ -2852,6 +2852,7 @@
         context.callGenericPopup(html, context.POPUP_TYPE.TEXT, '', {
             wide: true,
             large: !isNarrowViewport,
+            animation: isNarrowViewport ? 'none' : 'fast',
             okButton: false,
             cancelButton: false,
             allowVerticalScrolling: true,
