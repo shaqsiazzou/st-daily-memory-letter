@@ -424,12 +424,7 @@
 @keyframes dml-envelope-arrive {
     0% {
         opacity: 0;
-        transform: translate3d(0, 88px, -720px) scale(0.72) rotateX(18deg) rotateY(-8deg) rotateZ(1.4deg);
-    }
-
-    58% {
-        opacity: 1;
-        transform: translate3d(0, -6px, -120px) scale(1.02) rotateX(7deg) rotateY(-4.4deg) rotateZ(0.95deg);
+        transform: translate3d(0, 104px, -760px) scale(0.58) rotateX(18deg) rotateY(-8deg) rotateZ(1.4deg);
     }
 
     100% {
@@ -588,7 +583,7 @@
 }
 
 .dml-letter-popup:not(.opened) .dml-envelope-shell {
-    animation: dml-envelope-arrive 0.88s cubic-bezier(0.2, 0.78, 0.14, 1) both;
+    animation: dml-envelope-arrive 1.08s cubic-bezier(0.14, 0.82, 0.18, 1) both;
 }
 
 .dml-envelope-shell:not(.opened):hover {
