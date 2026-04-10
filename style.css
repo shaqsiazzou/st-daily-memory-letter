@@ -319,7 +319,10 @@
     font-size: 14px;
     line-height: 1.5;
     font-weight: 700;
-    color: var(--dml-panel-text);
+    color: var(--dml-panel-text) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
 }
 
 #dml-settings .dml-favorite-meta,
@@ -327,14 +330,20 @@
     margin-top: 4px;
     font-size: 12px;
     line-height: 1.55;
-    color: var(--dml-panel-muted);
+    color: var(--dml-panel-muted) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
 }
 
 #dml-settings .dml-favorite-teaser {
     margin-top: 8px;
     font-size: 12px;
     line-height: 1.7;
-    color: color-mix(in srgb, var(--dml-panel-text) 82%, var(--dml-panel-muted) 18%);
+    color: color-mix(in srgb, var(--dml-panel-text) 82%, var(--dml-panel-muted) 18%) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
 }
 
 #dml-settings .dml-favorite-actions {
@@ -1398,7 +1407,10 @@
     font-size: 14px;
     line-height: 1.5;
     font-weight: 700;
-    color: var(--dml-panel-text);
+    color: var(--dml-panel-text) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
 }
 
 .dml-favorites-popup .dml-favorite-meta,
@@ -1406,14 +1418,20 @@
     margin-top: 4px;
     font-size: 12px;
     line-height: 1.55;
-    color: var(--dml-panel-muted);
+    color: var(--dml-panel-muted) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
 }
 
 .dml-favorites-popup .dml-favorite-teaser {
     margin-top: 8px;
     font-size: 12px;
     line-height: 1.7;
-    color: color-mix(in srgb, var(--dml-panel-text) 82%, var(--dml-panel-muted) 18%);
+    color: color-mix(in srgb, var(--dml-panel-text) 82%, var(--dml-panel-muted) 18%) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
 }
 
 .dml-favorites-popup .dml-favorite-actions {
